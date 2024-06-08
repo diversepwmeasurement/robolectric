@@ -1,44 +1,37 @@
-name: Copybara tests
-
-on:
-  pull_request:
-    branches: [ google ]
-
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
-
-permissions:
-  contents: read
-
+  group: ${{ github.workflow }}-${{ github.ref }}
 jobs:
   copybara-tests:
-    runs-on: ubuntu-22.04
-
+    runs-on: self-hosted
     steps:
-      - uses: actions/checkout@v4
+    - continue-on-error: true
+      uses: actions/checkout@v4
+    - continue-on-error: true
+      name: Set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        distribution: adopt
+        java-version: 17
+    - continue-on-error: true
+      uses: gradle/actions/setup-gradle@v3
+    - continue-on-error: true
+      name: Build
+      run: 'SKIP_ERRORPRONE=true SKIP_JAVADOC=true \
 
-      - name: Set up JDK 17
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'adopt'
-          java-version: 17
+        ./gradlew assemble testClasses --parallel --stacktrace --no-watch-fs
 
-      - uses: gradle/actions/setup-gradle@v3
-
-      - name: Build
-        run: |
-          SKIP_ERRORPRONE=true SKIP_JAVADOC=true \
-          ./gradlew assemble testClasses --parallel --stacktrace --no-watch-fs
-
-      - name: Integration tests
-        run: |
-          # Only run integration tests on Copybara PRs
-          (cd integration_tests && \
-            SKIP_ERRORPRONE=true SKIP_JAVADOC=true \
-            ../gradlew test --info --stacktrace --continue --parallel --no-watch-fs \
-            -Drobolectric.alwaysIncludeVariantMarkersInTestName=true \
-            -Drobolectric.enabledSdks=34 \
-            -Dorg.gradle.workers.max=2 \
-            -x :integration_tests:nativegraphics:test \
-          )
+        '
+    - continue-on-error: true
+      name: Integration tests
+      run: "# Only run integration tests on Copybara PRs\n(cd integration_tests &&\
+        \ \\\n  SKIP_ERRORPRONE=true SKIP_JAVADOC=true \\\n  ../gradlew test --info\
+        \ --stacktrace --continue --parallel --no-watch-fs \\\n  -Drobolectric.alwaysIncludeVariantMarkersInTestName=true\
+        \ \\\n  -Drobolectric.enabledSdks=34 \\\n  -Dorg.gradle.workers.max=2 \\\n\
+        \  -x :integration_tests:nativegraphics:test \\\n)\n"
+name: Copybara tests
+on:
+  repository_dispatch:
+    types: trigger-ga___copybara_build_and_test.yml
+permissions:
+  contents: read
